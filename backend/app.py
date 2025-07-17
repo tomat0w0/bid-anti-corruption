@@ -41,8 +41,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class FileAnalysisResult(BaseModel):
+    """单个文件的分析结果模型"""
+    risk_score: float
+    risk_level: str
+    rule_hits: List[Dict[str, Any]]
+    llm_results: List[Dict[str, Any]]
+    processing_time: float
+    file_info: Dict[str, Any]
+    error_messages: List[str] = []
+
+class BatchAnalysisResult(BaseModel):
+    """批量分析结果模型"""
+    file_results: List[FileAnalysisResult]
+    overall_risk_score: float
+    overall_risk_level: str
+    total_processing_time: float
+    system_info: Dict[str, Any] = {}
+
 class AnalysisResult(BaseModel):
-    """分析结果模型"""
+    """兼容旧版的分析结果模型"""
     risk_score: float
     risk_level: str
     rule_hits: List[Dict[str, Any]]
@@ -135,19 +153,15 @@ async def health_check():
     """健康检查端点"""
     return {"status": "healthy", "timestamp": time.time()}
 
-@app.post("/analyze", response_model=AnalysisResult)
-async def analyze(
-    file: UploadFile = File(...),
-    budget: int = Form(0),
-    config: Config = Depends(get_current_config)
-):
-    """分析招标文件的廉政风险"""
+async def analyze_single_file(file: UploadFile, budget: int, config: Config, project_info: dict = None) -> FileAnalysisResult:
+    """分析单个招标文件的廉政风险"""
     start_time = time.time()
+    error_messages = []
     
     try:
         # 验证文件
         validate_file(file, config)
-        logger.info(f"开始分析文件: {file.filename}, 预算: {budget}")
+        logger.info(f"开始分析文件: {file.filename}, 预算: {budget}, 项目: {project_info.get('project_name', '未命名项目') if project_info else '未命名项目'}")
         
         # 提取文本
         try:
@@ -160,6 +174,11 @@ async def analyze(
         
         # 运行规则检测
         meta = {"budget": budget, "filename": file.filename}
+        
+        # 添加项目信息到元数据
+        if project_info:
+            meta.update(project_info)
+            
         try:
             hits = run_rules(text, meta)
             logger.info(f"规则检测完成，发现 {len(hits)} 个风险点")
@@ -181,11 +200,17 @@ async def analyze(
         llm_results = []
         if all_snips:
             try:
-                llm_results = await process_llm_batch(all_snips, budget, config)
+                # 将项目信息添加到LLM分析
+                llm_meta = {"budget": budget}
+                if project_info:
+                    llm_meta.update(project_info)
+                    
+                llm_results = await process_llm_batch(all_snips, llm_meta, config)
                 logger.info(f"LLM分析完成，成功处理 {len(llm_results)} 个片段")
                 
             except Exception as e:
                 logger.error(f"LLM分析失败: {str(e)}")
+                error_messages.append(f"LLM分析部分失败: {str(e)}")
                 llm_results = []  # 继续处理，不中断流程
         
         # 合并结果
@@ -197,21 +222,84 @@ async def analyze(
         analysis_time = time.time() - start_time
         logger.info(f"分析完成，耗时: {analysis_time:.2f}秒，风险评分: {score}")
         
-        return AnalysisResult(
+        file_info = {
+            "filename": file.filename,
+            "size": file.size,
+            "content_length": len(text)
+        }
+        
+        # 添加项目信息到文件信息
+        if project_info and project_info.get("project_name"):
+            file_info["project_name"] = project_info.get("project_name")
+        
+        return FileAnalysisResult(
             risk_score=score,
             risk_level=get_risk_level(score),
             rule_hits=hits,
             llm_results=llm_results,
             processing_time=analysis_time,
+            file_info=file_info,
+            error_messages=error_messages
+        )
+        
+    except Exception as e:
+        logger.error(f"文件 {file.filename} 分析失败: {str(e)}")
+        return FileAnalysisResult(
+            risk_score=0.0,
+            risk_level="unknown",
+            rule_hits=[],
+            llm_results=[],
+            processing_time=time.time() - start_time,
             file_info={
                 "filename": file.filename,
-                "size": file.size,
-                "content_length": len(text)
+                "size": file.size if hasattr(file, 'size') else 0,
+                "content_length": 0,
+                "project_name": project_info.get("project_name", "未命名项目") if project_info else "未命名项目"
             },
+            error_messages=[f"分析失败: {str(e)}"]  
+        )
+
+@app.post("/analyze", response_model=AnalysisResult)
+async def analyze(
+    file: UploadFile = File(...),
+    budget: int = Form(0),
+    project_name: str = Form(None),
+    project_location: str = Form(None),
+    company_location: str = Form(None),
+    registered_capital: int = Form(None),
+    config: Config = Depends(get_current_config)
+):
+    """分析单个招标文件的廉政风险（兼容旧版）"""
+    start_time = time.time()
+    
+    # 收集项目信息
+    project_info = {}
+    if project_name:
+        project_info["project_name"] = project_name
+    if project_location:
+        project_info["project_location"] = project_location
+    if company_location:
+        project_info["company_location"] = company_location
+    if registered_capital:
+        project_info["registered_capital"] = registered_capital
+    
+    try:
+        # 调用单文件分析函数
+        result = await analyze_single_file(file, budget, config, project_info)
+        
+        # 转换为旧版格式返回
+        return AnalysisResult(
+            risk_score=result.risk_score,
+            risk_level=result.risk_level,
+            rule_hits=result.rule_hits,
+            llm_results=result.llm_results,
+            processing_time=result.processing_time,
+            file_info=result.file_info,
+            error_messages=result.error_messages,
             system_info={
-                "total_hits": len(merged),
-                "llm_processed": len(llm_results),
-                "rules_applied": len(hits)
+                "total_hits": len(result.rule_hits),
+                "llm_processed": len(result.llm_results),
+                "rules_applied": len(result.rule_hits)
             }
         )
         
@@ -227,7 +315,73 @@ async def analyze(
         logger.error(f"分析过程发生未知错误: {str(e)}")
         raise HTTPException(status_code=500, detail="服务器内部错误")
 
-async def process_llm_batch(snippets: List[str], budget: float, config: Config) -> List[Dict[str, Any]]:
+@app.post("/analyze-batch", response_model=BatchAnalysisResult)
+async def analyze_batch(
+    files: List[UploadFile] = File(...),
+    budget: int = Form(0),
+    project_name: str = Form(None),
+    project_location: str = Form(None),
+    company_location: str = Form(None),
+    registered_capital: int = Form(None),
+    config: Config = Depends(get_current_config)
+):
+    """批量分析多个招标文件的廉政风险"""
+    start_time = time.time()
+    
+    if not files:
+        raise HTTPException(status_code=400, detail="未提供文件")
+    
+    if len(files) > 10:  # 限制最大文件数量
+        raise HTTPException(status_code=400, detail=f"文件数量超过限制，最多允许10个文件，当前提供了{len(files)}个")
+    
+    # 收集项目信息
+    project_info = {}
+    if project_name:
+        project_info["project_name"] = project_name
+    if project_location:
+        project_info["project_location"] = project_location
+    if company_location:
+        project_info["company_location"] = company_location
+    if registered_capital:
+        project_info["registered_capital"] = registered_capital
+    
+    logger.info(f"开始批量分析 {len(files)} 个文件，预算: {budget}, 项目: {project_name if project_name else '未命名项目'}")
+    
+    # 并行处理所有文件
+    tasks = [analyze_single_file(file, budget, config, project_info) for file in files]
+    file_results = await asyncio.gather(*tasks)
+    
+    # 计算总体风险评分（取最高分）
+    overall_risk_score = max([result.risk_score for result in file_results]) if file_results else 0.0
+    overall_risk_level = get_risk_level(overall_risk_score)
+    
+    total_processing_time = time.time() - start_time
+    logger.info(f"批量分析完成，共 {len(files)} 个文件，耗时: {total_processing_time:.2f}秒，总体风险评分: {overall_risk_score}")
+    
+    # 统计系统信息
+    total_hits = sum(len(result.rule_hits) for result in file_results)
+    total_llm_processed = sum(len(result.llm_results) for result in file_results)
+    
+    system_info = {
+        "total_files": len(files),
+        "total_hits": total_hits,
+        "total_llm_processed": total_llm_processed,
+        "successful_files": sum(1 for result in file_results if not result.error_messages)
+    }
+    
+    # 添加项目信息到系统信息
+    if project_info:
+        system_info["project_info"] = project_info
+    
+    return BatchAnalysisResult(
+        file_results=file_results,
+        overall_risk_score=overall_risk_score,
+        overall_risk_level=overall_risk_level,
+        total_processing_time=total_processing_time,
+        system_info=system_info
+    )
+
+async def process_llm_batch(snippets: List[str], meta: Dict[str, Any], config: Config) -> List[Dict[str, Any]]:
     """批量处理LLM评估"""
     if not snippets:
         return []
@@ -239,7 +393,7 @@ async def process_llm_batch(snippets: List[str], budget: float, config: Config) 
             try:
                 # 使用asyncio.wait_for添加超时控制
                 result = await asyncio.wait_for(
-                    asyncio.to_thread(llm_eval, snippet, {"budget": budget}),
+                    asyncio.to_thread(llm_eval, snippet, meta),
                     timeout=config.dify.timeout
                 )
                 
@@ -270,7 +424,7 @@ async def process_llm_batch(snippets: List[str], budget: float, config: Config) 
                     "level": "medium",
                     "confidence": 0.1
                 }
-    
+
     # 并发处理所有片段
     tasks = [process_single_snippet(snippet) for snippet in snippets]
     

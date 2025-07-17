@@ -1,17 +1,23 @@
-import os, requests, json, time, logging
+import os
+import requests
+import json
+import time
+import logging
 from typing import Dict, Any, Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from config import get_config
 
 logger = logging.getLogger(__name__)
 
-# 配置参数
-APP_ID = os.getenv("DIFY_APPID")
-TOKEN = os.getenv("DIFY_TOKEN")
-URL = os.getenv("DIFY_URL")  # 形如 `http://dify.internal/v1/chat-messages`
-TIMEOUT = int(os.getenv("DIFY_TIMEOUT", 40))
-MAX_RETRIES = int(os.getenv("DIFY_MAX_RETRIES", 3))
-RETRY_DELAY = float(os.getenv("DIFY_RETRY_DELAY", 1.0))
+# 从配置中获取Dify参数
+config = get_config()
+APP_ID = config.dify.app_id
+TOKEN = config.dify.token
+URL = config.dify.url  # 形如 `http://dify.internal/v1/chat-messages`
+TIMEOUT = config.dify.timeout
+MAX_RETRIES = config.dify.max_retries
+RETRY_DELAY = config.dify.retry_delay
 
 class DifyClientError(Exception):
     """Dify客户端异常"""

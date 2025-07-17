@@ -32,7 +32,7 @@ class DifyConfig:
 class FileConfig:
     """文件处理配置"""
     max_file_size: int = 10 * 1024 * 1024  # 10MB
-    allowed_extensions: list = field(default_factory=lambda: [".docx"])
+    allowed_extensions: list = field(default_factory=lambda: [".docx", ".pdf"])
     upload_dir: str = "uploads"
     temp_dir: str = "temp"
     max_files_per_request: int = 5
@@ -79,8 +79,18 @@ class Config:
     
     def __init__(self):
         # 加载.env文件
-        env_path = Path(__file__).parent.parent / ".env"
-        load_dotenv(env_path)
+        parent_env_path = Path(__file__).parent.parent / ".env"
+        current_env_path = Path(__file__).parent / ".env"
+        
+        # 优先加载当前目录的.env文件，如果不存在则加载父目录的
+        if current_env_path.exists():
+            load_dotenv(current_env_path)
+            print(f"已加载配置文件: {current_env_path}")
+        elif parent_env_path.exists():
+            load_dotenv(parent_env_path)
+            print(f"已加载配置文件: {parent_env_path}")
+        else:
+            print("警告: 未找到.env配置文件")
         
         self.database = DatabaseConfig()
         self.dify = DifyConfig()

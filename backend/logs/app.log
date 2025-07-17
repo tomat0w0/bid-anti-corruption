@@ -1,2 +1,27 @@
 2025-07-17 10:06:33,860 - config - INFO - 日志系统初始化完成，级别: INFO
 2025-07-17 10:06:55,430 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 10:09:42,003 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 10:10:55,572 - run_rules - INFO - 成功加载 19 条规则
+2025-07-17 10:10:55,572 - run_rules - WARNING - 后处理检查模块加载失败: No module named 'backend'
+2025-07-17 10:10:55,578 - run_rules - INFO - 成功加载 19 条规则
+2025-07-17 10:10:55,578 - app - INFO - 规则重新加载成功
+2025-07-17 10:10:55,578 - app - ERROR - 重新加载规则失败: 'bool' object has no attribute 'get'
+2025-07-17 10:11:07,410 - app - ERROR - 获取统计信息失败: 'DifyConfig' object has no attribute 'api_url'
+2025-07-17 10:11:14,660 - app - ERROR - 获取统计信息失败: 'DifyConfig' object has no attribute 'api_url'
+2025-07-17 10:41:29,713 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 10:47:15,020 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 10:59:25,236 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 10:59:26,398 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:06:51,115 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:07:57,884 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:08:21,244 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:08:38,197 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:08:42,304 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:08:51,431 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:03,710 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:04,800 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:13,434 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:44,036 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:45,189 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:48,455 - config - INFO - 日志系统初始化完成，级别: INFO
+2025-07-17 11:09:49,620 - config - INFO - 日志系统初始化完成，级别: INFO
