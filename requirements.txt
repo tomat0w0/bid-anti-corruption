@@ -1,0 +1,52 @@
+# Web框架
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# 前端
+streamlit==1.28.1
+
+# 文档处理
+python-docx==0.8.11
+regex==2023.10.3
+
+# 数据处理
+pyyaml==6.0.1
+requests==2.31.0
+urllib3==2.0.7
+
+# 数据验证
+pydantic==2.5.0
+
+# 异步处理
+aiofiles==23.2.1
+aiohttp==3.9.1
+
+# 数据库（可选）
+# sqlalchemy==2.0.23
+# psycopg2-binary==2.9.9
+# alembic==1.13.1
+
+# 缓存（可选）
+# redis==5.0.1
+
+# 监控和日志
+loguru==0.7.2
+
+# 安全
+cryptography==41.0.7
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# 开发工具
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+
+# 性能监控
+psutil==5.9.6
+
+# 环境变量管理
+python-dotenv==1.0.0

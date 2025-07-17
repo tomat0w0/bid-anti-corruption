@@ -1,0 +1,143 @@
+# ========================  H 级（hard，高危）  ========================
+- id: H1_BRAND_ONLY
+  level: high
+  include:
+    - "(仅限|只接受|不得替代|唯一符合).{0,15}(品牌|厂商|型号)"
+  tags: ["限制竞争","指定品牌"]
+
+- id: H2_SOLE_SOURCE
+  level: high
+  include:
+    - "(唯一(经销|代理)|(只能|必须)由.*?供应)"
+  tags: ["单一来源"]
+
+- id: H3_CAPITAL_ABNORMAL
+  level: high
+  include:
+    - "注册资本(不少于|不低于)\\s*([1-9]\\d*?)万"
+  post_check: capital_vs_budget          # 项目预算比对
+  tags: ["资质门槛"]
+
+- id: H4_EXPERIENCE_OVER_LIMIT
+  level: high
+  include:
+    - "(类似项目业绩|同类业绩).{0,20}(10|十)个以上"
+    - "(成立时间|运营年限).{0,20}(10|十)年以上"
+  tags: ["资质门槛"]
+
+- id: H5_LOCAL_RESTRICTION
+  level: high
+  include:
+    - "(本省|本市|本地区)(投标人|企业)须.*?(注册|资质)"
+  exclude:
+    - "针对少数民族地区项目"         # 合法例外可再补充
+  tags: ["地域歧视"]
+
+- id: H6_SCORE_SUBJECTIVE
+  level: high
+  include:
+    - "(专家|评委).{0,12}(自主|酌情|自由).{0,12}(加分|评分)"
+  tags: ["人为加分"]
+
+- id: H7_SCORE_WEIGHT_BID_PRICE_LOW
+  level: high
+  include:
+    - "报价分(权重)?(占比)?\\s*(低于|少于)\\s*30%"
+  tags: ["商务倾斜"]
+
+- id: H8_OFFLINE_ONLY_SUBMISSION
+  level: high
+  include:
+    - "(仅接受|只限).*现场递交"
+    - "不接受(线上|电子)投标"
+  tags: ["暗箱操作"]
+
+# ========================  M 级（medium，中风险） ========================
+- id: M1_PRIVATE_CONTACT
+  level: medium
+  include:
+    - "qq\\.com"
+    - "163\\.com"
+    - "@gmail"
+    - "微信"
+    - "手机号[:：]?1\\d{10}"
+  tags: ["灰色沟通"]
+
+- id: M2_SHORT_TIMELINE
+  level: medium
+  include:
+    - "投标截止.{0,10}(3|三)日"
+    - "澄清截止.{0,10}24小时"
+  post_check: timeline_vs_law
+  tags: ["限时竞争"]
+
+- id: M3_BID_BOND_EXCESS
+  level: medium
+  include:
+    - "投标保证金.{0,10}([1-9]\\d{5,})元"
+  post_check: bond_vs_budget
+  tags: ["资金门槛"]
+
+- id: M4_PERFORMANCE_SECURITY_EXCESS
+  level: medium
+  include:
+    - "履约保证金.{0,10}(30|40|50)%"
+  tags: ["资金门槛"]
+
+- id: M5_AMBIGUOUS_SPEC
+  level: medium
+  include:
+    - "(先进|优质|良好|一流)的(产品|服务)"
+    - "须具有(良好|优良)信誉"
+  tags: ["模糊描述"]
+
+- id: M6_SIMILAR_PROJECT_UNCLEAR
+  level: medium
+  include:
+    - "类似(项目|合同).{0,15}(不少于|不低于|至少)\\s*([1-9])个?"
+  exclude:
+    - "国家规定"
+  tags: ["资质模糊"]
+
+- id: M7_TECH_PARAM_SINGLE_POINT
+  level: medium
+  include:
+    - "CPU主频.{0,5}\\d\\.\\d{1,2}GHz"
+    - "尺寸为.{0,5}\\d+\\s*mm"
+  tags: ["技术锁定"]
+
+# ========================  L 级（low，提示） ========================
+- id: L1_MISSING_NO_BRAND_CLAUSE
+  level: low
+  include:
+    - "不得(指定|限定)(品牌|厂商)"
+  negate: true                   # 自定义逻辑：全文未出现则提示
+  tags: ["框架缺失"]
+
+- id: L2_PAYMENT_DELAY
+  level: low
+  include:
+    - "支付(周期|期限).{0,10}(180|180日|6个月)"
+  tags: ["付款条件"]
+
+- id: L3_UNCLEAR_QUANTITY
+  level: low
+  include:
+    - "(若干|适量|暂定)"
+  tags: ["数量不清"]
+
+- id: L4_LATE_DELIVERY_CLAUSE
+  level: low
+  include:
+    - "延期交付.{0,10}违约金"
+    - "每日.*?万分之"
+  tags: ["履约条款"]
+
+# ========================  说明  ========================
+# 1. include 里的正则默认大小写不敏感，由代码调用时加 re.I。
+# 2. post_check 指向 backend/post_checks.py 中的函数，用于动态判断：
+#    - capital_vs_budget : 注册资本相对预算过高
+#    - timeline_vs_law   : 公告→投标期少于法定最短天数
+#    - bond_vs_budget    : 保证金 > 预算*2% 等
+# 3. 如需白名单可用 exclude；如需黑名单反向匹配，可用 negate:true 自行在代码实现。
+# 4. tags 用于前端/报告聚合，例如生成“限制竞争 3 条、资金门槛 2 条”。
